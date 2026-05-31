@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Admin – WorkPlace{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-people"></i> Admin Panel</h4>
+  {% if current_user.is_executive %}
+  <div>
+    <a href="{{ url_for('admin.create_user') }}" class="btn btn-sm btn-dark"><i class="bi bi-person-plus"></i> Add User</a>
+    <a href="{{ url_for('admin.create_team') }}" class="btn btn-sm btn-outline-dark ms-1"><i class="bi bi-plus-circle"></i> Add Team</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Teams -->
+<h6 class="fw-bold mb-2">Teams</h6>
+{% if teams %}
+<div class="row g-2 mb-4">
+  {% for team in teams %}
+  <div class="col-md-3">
+    <div class="card p-2">
+      <div class="d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">{{ team.name }}</span>
+        {% if current_user.is_executive %}
+        <a href="{{ url_for('admin.edit_team', team_id=team.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+        {% endif %}
+      </div>
+      <small class="text-muted">{{ team.members|length }} member(s)</small>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted small">No teams yet.</p>
+{% endif %}
+
+<!-- Users -->
+<h6 class="fw-bold mb-2">Users</h6>
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>Name</th><th>Email</th><th>Role</th><th>Team</th><th>Status</th>
+        {% if current_user.is_executive %}<th>Actions</th>{% endif %}</tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr class="{% if not u.is_active %}text-muted{% endif %}">
+          <td>{{ u.full_name }}</td>
+          <td>{{ u.email }}</td>
+          <td><span class="badge bg-secondary">{{ u.role|replace('_',' ')|title }}</span></td>
+          <td>{{ u.team.name if u.team else '—' }}</td>
+          <td>
+            {% if u.is_active %}<span class="badge bg-success">Active</span>
+            {% else %}<span class="badge bg-danger">Inactive</span>{% endif %}
+          </td>
+          {% if current_user.is_executive %}
+          <td>
+            <a href="{{ url_for('admin.edit_user', user_id=u.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+            {% if u.id != current_user.id %}
+            <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button class="btn btn-sm {% if u.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                {% if u.is_active %}<i class="bi bi-person-x"></i>{% else %}<i class="bi bi-person-check"></i>{% endif %}
+              </button>
+            </form>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
