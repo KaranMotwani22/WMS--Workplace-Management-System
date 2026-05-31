@@ -77,4 +77,13 @@ def calendar():
         notif_count=notif_count
     )
 
-
+@dashboard_bp.route('/notifications')
+@login_required
+def notifications():
+    notifs = Notification.query.filter_by(user_id=current_user.id)\
+        .order_by(Notification.created_at.desc()).limit(50).all()
+    # Mark all as read
+    Notification.query.filter_by(user_id=current_user.id, is_read=False)\
+        .update({'is_read': True})
+    db.session.commit()
+    return render_template('dashboard/notifications.html', notifications=notifs)
