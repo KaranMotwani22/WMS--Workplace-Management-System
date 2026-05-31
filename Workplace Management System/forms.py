@@ -24,5 +24,11 @@ class RegistrationForm(FlaskForm):
         if user:
             raise ValidationError('Email already registered.')
 
-
-
+class WorkStatusForm(FlaskForm):
+    date = DateField('Date', validators=[DataRequired()])
+    status = SelectField('Status', choices=[
+        ('office', 'Working from Office'),
+        ('remote', 'Remote'),
+        ('pto', 'PTO / Paid Time Off')
+    ])
+    submit = SubmitField('Set Status')
