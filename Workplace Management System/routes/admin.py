@@ -99,3 +99,33 @@ def toggle_user(user_id):
     return redirect(url_for('admin.index'))
 
 
+# ── Teams ──────────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/teams/create', methods=['GET', 'POST'])
+@login_required
+@executive_required
+def create_team():
+    form = TeamForm()
+    if form.validate_on_submit():
+        team = Team(name=form.name.data.strip())
+        db.session.add(team)
+        db.session.commit()
+        flash(f'Team "{team.name}" created.', 'success')
+        return redirect(url_for('admin.index'))
+    return render_template('admin/create_team.html', form=form)
+
+
+@admin_bp.route('/teams/<int:team_id>/edit', methods=['GET', 'POST'])
+@login_required
+@executive_required
+def edit_team(team_id):
+    team = Team.query.get_or_404(team_id)
+    form = TeamForm(obj=team)
+    if form.validate_on_submit():
+        team.name = form.name.data.strip()
+        db.session.commit()
+        flash('Team updated.', 'success')
+        return redirect(url_for('admin.index'))
+    return render_template('admin/edit_team.html', form=form, team=team)
+
+
