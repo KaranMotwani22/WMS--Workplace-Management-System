@@ -56,3 +56,10 @@ def parking_availability():
     free = [s for s in range(1, total + 1) if s not in booked_nums]
 
     return jsonify({'date': date_str, 'available': free, 'booked': booked_nums, 'total': total})
+
+
+@api_bp.route('/notifications/unread-count')
+@login_required
+def unread_count():
+    count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+    return jsonify({'count': count})
