@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Register – WorkPlace{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+  <div class="col-md-5">
+    <div class="card p-4">
+      <h4 class="mb-3">Create Account</h4>
+      <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="row">
+          <div class="col mb-3">
+            {{ form.first_name.label(class="form-label") }}
+            {{ form.first_name(class="form-control") }}
+            {% for e in form.first_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col mb-3">
+            {{ form.last_name.label(class="form-label") }}
+            {{ form.last_name(class="form-control") }}
+            {% for e in form.last_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+        <div class="mb-3">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-control") }}
+          {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
+          {{ form.password.label(class="form-label") }}
+          {{ form.password(class="form-control") }}
+          {% for e in form.password.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
+          {{ form.password2.label(class="form-label") }}
+          {{ form.password2(class="form-control") }}
+          {% for e in form.password2.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        {{ form.submit(class="btn btn-dark w-100") }}
+      </form>
+      <hr/>
+      <p class="text-center mb-0 small">Already have an account? <a href="{{ url_for('auth.login') }}">Login</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
