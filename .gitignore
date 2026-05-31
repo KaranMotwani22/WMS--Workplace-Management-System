@@ -1,0 +1,6 @@
+/Workplace Management System/venv/
+/Workplace Management System/__pycache__/
+/Workplace Management System/instance/
+/Workplace Management System/routes/__pycache__/
+/Workplace Management System/migrations/
+/Workplace Management System/*.pyc
