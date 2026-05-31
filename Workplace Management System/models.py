@@ -36,9 +36,9 @@ class User(UserMixin, db.Model):
 
     team = db.relationship('Team', foreign_keys=[team_id], back_populates='members')
     work_statuses = db.relationship('WorkStatus', back_populates='user', lazy='dynamic')
-    parking_bookings = db.relationship('ParkingBooking', back_populates='user', lazy='dynamic')
+    parking_bookings = db.relationship('ParkingBooking', foreign_keys='ParkingBooking.user_id', back_populates='user', lazy='dynamic')
     notifications = db.relationship('Notification', back_populates='user', lazy='dynamic')
-    claims = db.relationship('ParkingClaim', back_populates='user', lazy='dynamic')
+    claims = db.relationship('ParkingClaim', foreign_keys='ParkingClaim.user_id', back_populates='user', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

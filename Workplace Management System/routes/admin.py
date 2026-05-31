@@ -99,3 +99,83 @@ def toggle_user(user_id):
     return redirect(url_for('admin.index'))
 
 
+# ── Teams ──────────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/teams/create', methods=['GET', 'POST'])
+@login_required
+@executive_required
+def create_team():
+    form = TeamForm()
+    if form.validate_on_submit():
+        team = Team(name=form.name.data.strip())
+        db.session.add(team)
+        db.session.commit()
+        flash(f'Team "{team.name}" created.', 'success')
+        return redirect(url_for('admin.index'))
+    return render_template('admin/create_team.html', form=form)
+
+
+@admin_bp.route('/teams/<int:team_id>/edit', methods=['GET', 'POST'])
+@login_required
+@executive_required
+def edit_team(team_id):
+    team = Team.query.get_or_404(team_id)
+    form = TeamForm(obj=team)
+    if form.validate_on_submit():
+        team.name = form.name.data.strip()
+        db.session.commit()
+        flash('Team updated.', 'success')
+        return redirect(url_for('admin.index'))
+    return render_template('admin/edit_team.html', form=form, team=team)
+
+
+# ── Reports ────────────────────────────────────────────────────────────────────
+
+@admin_bp.route('/reports')
+@login_required
+@leader_or_exec
+def reports():
+    from datetime import date, timedelta
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+
+    statuses = WorkStatus.query.filter(
+        WorkStatus.date >= week_start,
+        WorkStatus.date <= week_end
+    ).all()
+
+    office_count = sum(1 for s in statuses if s.status == 'office')
+    remote_count = sum(1 for s in statuses if s.status == 'remote')
+    pto_count = sum(1 for s in statuses if s.status == 'pto')
+
+    parking_this_week = ParkingBooking.query.filter(
+        ParkingBooking.date >= week_start,
+        ParkingBooking.date <= week_end,
+        ParkingBooking.status == 'active'
+    ).count()
+
+    teams = Team.query.all()
+    team_stats = []
+    for team in teams:
+        member_ids = [u.id for u in team.members]
+        if not member_ids:
+            continue
+        ts = WorkStatus.query.filter(
+            WorkStatus.user_id.in_(member_ids),
+            WorkStatus.date >= week_start,
+            WorkStatus.date <= week_end
+        ).all()
+        team_stats.append({
+            'team': team,
+            'office': sum(1 for s in ts if s.status == 'office'),
+            'remote': sum(1 for s in ts if s.status == 'remote'),
+            'pto': sum(1 for s in ts if s.status == 'pto'),
+        })
+
+    return render_template('admin/reports.html',
+        week_start=week_start, week_end=week_end,
+        office_count=office_count, remote_count=remote_count,
+        pto_count=pto_count, parking_this_week=parking_this_week,
+        team_stats=team_stats
+    )

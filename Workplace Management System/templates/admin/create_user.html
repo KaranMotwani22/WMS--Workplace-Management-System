@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Create User – WorkPlace{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card p-4">
+      <h4 class="mb-3"><i class="bi bi-person-plus"></i> Create User</h4>
+      <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="row">
+          <div class="col mb-3">
+            {{ form.first_name.label(class="form-label") }}
+            {{ form.first_name(class="form-control") }}
+            {% for e in form.first_name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col mb-3">
+            {{ form.last_name.label(class="form-label") }}
+            {{ form.last_name(class="form-control") }}
+          </div>
+        </div>
+        <div class="mb-3">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-control") }}
+          {% for e in form.email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
+          {{ form.password.label(class="form-label") }}
+          {{ form.password(class="form-control") }}
+        </div>
+        <div class="mb-3">
+          {{ form.role.label(class="form-label") }}
+          {{ form.role(class="form-select") }}
+        </div>
+        <div class="mb-3">
+          {{ form.team_id.label(class="form-label") }}
+          {{ form.team_id(class="form-select") }}
+        </div>
+        {{ form.submit(class="btn btn-dark w-100") }}
+      </form>
+      <a href="{{ url_for('admin.index') }}" class="btn btn-link w-100 mt-1">Cancel</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
