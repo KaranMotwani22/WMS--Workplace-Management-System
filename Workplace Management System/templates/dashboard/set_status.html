@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Set Status – WorkPlace{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card p-4">
+      <h4 class="mb-3"><i class="bi bi-pencil-square"></i> Set Work Status</h4>
+      <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+          {{ form.date.label(class="form-label") }}
+          {{ form.date(class="form-control", min=today.isoformat()) }}
+          {% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="mb-3">
+          {{ form.status.label(class="form-label") }}
+          {{ form.status(class="form-select") }}
+        </div>
+        {{ form.submit(class="btn btn-dark w-100") }}
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
