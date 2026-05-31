@@ -32,3 +32,8 @@ class WorkStatusForm(FlaskForm):
         ('pto', 'PTO / Paid Time Off')
     ])
     submit = SubmitField('Set Status')
+
+class ParkingBookingForm(FlaskForm):
+    date = DateField('Date', validators=[DataRequired()])
+    submit = SubmitField('Reserve Spot')
+

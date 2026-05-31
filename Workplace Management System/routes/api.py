@@ -34,3 +34,25 @@ def week_statuses():
     })
 
 
+@api_bp.route('/parking/availability')
+@login_required
+def parking_availability():
+    """Return available spots for a given date."""
+    date_str = request.args.get('date')
+    if not date_str:
+        return jsonify({'error': 'date required'}), 400
+    try:
+        chosen = date.fromisoformat(date_str)
+    except ValueError:
+        return jsonify({'error': 'invalid date'}), 400
+
+    from config import Config
+    total = Config.PARKING_SPOTS_TOTAL
+    booked = db.session.query(ParkingBooking.spot_number).filter(
+        ParkingBooking.date == chosen,
+        ParkingBooking.status == 'active'
+    ).all()
+    booked_nums = [b[0] for b in booked]
+    free = [s for s in range(1, total + 1) if s not in booked_nums]
+
+    return jsonify({'date': date_str, 'available': free, 'booked': booked_nums, 'total': total})
