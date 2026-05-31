@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Parking – WorkPlace{% endblock %}
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-p-circle"></i> Parking Management</h4>
+
+<div class="row g-3">
+  <!-- Book a spot -->
+  <div class="col-md-4">
+    <div class="card h-100 p-3">
+      <h6 class="fw-bold mb-3">Reserve a Spot</h6>
+      <form method="POST" action="{{ url_for('parking.book') }}">
+        {{ form.hidden_tag() }}
+        <div class="mb-2">
+          {{ form.date.label(class="form-label") }}
+          {{ form.date(class="form-control", min=today.isoformat()) }}
+          {% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+        </div>
+        <div id="availMsg" class="small text-muted mb-2"></div>
+        {{ form.submit(class="btn btn-dark btn-sm w-100") }}
+      </form>
+    </div>
+  </div>
+
+  <!-- My bookings -->
+  <div class="col-md-8">
+    <div class="card h-100 p-3">
+      <h6 class="fw-bold mb-3">My Upcoming Bookings</h6>
+      {% if my_bookings %}
+      <table class="table table-sm table-hover mb-0">
+        <thead><tr><th>Date</th><th>Spot</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for b in my_bookings %}
+          <tr>
+            <td>{{ b.date.strftime('%a %d %b %Y') }}</td>
+            <td><span class="badge bg-dark">Spot {{ b.spot_number }}</span></td>
+            <td>
+              <form method="POST" action="{{ url_for('parking.release', booking_id=b.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-outline-warning btn-sm" onclick="return confirm('Release this spot?')">Release</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted small mb-0">No upcoming bookings.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Released spots -->
+  {% if released %}
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-lightning text-warning"></i> Released Spots — Available to Claim</h6>
+      <table class="table table-sm table-hover mb-0">
+        <thead><tr><th>Date</th><th>Spot</th><th>Released By</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for b in released %}
+          <tr>
+            <td>{{ b.date.strftime('%a %d %b %Y') }}</td>
+            <td><span class="badge bg-success">Spot {{ b.spot_number }}</span></td>
+            <td>{{ b.released_by.full_name if b.released_by else '—' }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('parking.claim', booking_id=b.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-success btn-sm">Claim</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Pending claims (leaders/exec) -->
+  {% if pending_claims and (current_user.is_team_leader or current_user.is_executive) %}
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-hourglass-split text-primary"></i> Pending Claims</h6>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Employee</th><th>Date</th><th>Spot</th><th>Submitted</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for c in pending_claims %}
+          <tr>
+            <td>{{ c.user.full_name }}</td>
+            <td>{{ c.booking.date.strftime('%a %d %b %Y') }}</td>
+            <td>Spot {{ c.booking.spot_number }}</td>
+            <td>{{ c.created_at.strftime('%d %b %H:%M') }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('parking.review_claim', claim_id=c.id, action='approve') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-success btn-sm">Approve</button>
+              </form>
+              <form method="POST" action="{{ url_for('parking.review_claim', claim_id=c.id, action='reject') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-outline-danger btn-sm">Reject</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelector('input[type=date]').addEventListener('change', async function() {
+  const d = this.value;
+  if (!d) return;
+  const res = await fetch(`/api/parking/availability?date=${d}`);
+  const data = await res.json();
+  const msg = document.getElementById('availMsg');
+  if (data.available.length > 0) {
+    msg.innerHTML = `<span class="text-success"><i class="bi bi-check-circle"></i> ${data.available.length} spot(s) free: ${data.available.join(', ')}</span>`;
+  } else {
+    msg.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> No spots available</span>`;
+  }
+});
+</script>
+{% endblock %}

@@ -62,3 +62,45 @@ def book():
     db.session.commit()
     flash(f'Parking spot {free[0]} reserved for {chosen_date}.', 'success')
     return redirect(url_for('parking.index'))
+
+@parking_bp.route('/release/<int:booking_id>', methods=['POST'])
+@login_required
+def release(booking_id):
+    booking = ParkingBooking.query.get_or_404(booking_id)
+
+    # Only owner or team leader can release
+    if booking.user_id != current_user.id and not current_user.is_team_leader and not current_user.is_executive:
+        flash('Not authorized.', 'danger')
+        return redirect(url_for('parking.index'))
+
+    if booking.status != 'active':
+        flash('Booking is not active.', 'warning')
+        return redirect(url_for('parking.index'))
+
+    booking.status = 'released'
+    booking.released_by_id = current_user.id
+
+    # Notify all users with office status that day (except original owner)
+    office_users = db.session.query(WorkStatus.user_id).filter(
+        WorkStatus.date == booking.date,
+        WorkStatus.status == 'office',
+        WorkStatus.user_id != booking.user_id
+    ).all()
+
+    for (uid,) in office_users:
+        # Skip users who already have parking
+        has_parking = ParkingBooking.query.filter_by(
+            user_id=uid, date=booking.date, status='active'
+        ).first()
+        if not has_parking:
+            _notify(
+                uid,
+                f'A parking spot (Spot {booking.spot_number}) was released for {booking.date}. You can claim it!',
+                'parking_released',
+                booking.id
+            )
+
+    db.session.commit()
+    flash('Parking spot released. Others have been notified.', 'success')
+    return redirect(url_for('parking.index'))
+
