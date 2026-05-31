@@ -44,3 +44,37 @@ def set_status():
         return redirect(url_for('dashboard.calendar'))
 
     return render_template('dashboard/set_status.html', form=form, today=today)
+
+@dashboard_bp.route('/dashboard')
+@login_required
+def calendar():
+    today = date.today()
+    # Build week starting Monday
+    week_start = today - timedelta(days=today.weekday())
+    week_dates = [week_start + timedelta(days=i) for i in range(7)]
+
+    # All users + their statuses for this week
+    users = User.query.filter_by(is_active=True).order_by(User.team_id, User.last_name).all()
+    statuses = WorkStatus.query.filter(
+        WorkStatus.date >= week_start,
+        WorkStatus.date <= week_dates[-1]
+    ).all()
+
+    # Build lookup: {user_id: {date: status}}
+    status_map = {}
+    for s in statuses:
+        status_map.setdefault(s.user_id, {})[s.date] = s.status
+
+    # Unread notifications count
+    notif_count = Notification.query.filter_by(user_id=current_user.id, is_read=False).count()
+
+    return render_template(
+        'dashboard/calendar.html',
+        users=users,
+        week_dates=week_dates,
+        status_map=status_map,
+        today=today,
+        notif_count=notif_count
+    )
+
+
