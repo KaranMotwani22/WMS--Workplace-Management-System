@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Team Calendar – WorkPlace{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-calendar3"></i> Team Calendar</h4>
+  <div>
+    <button class="btn btn-sm btn-outline-secondary" id="prevWeek"><i class="bi bi-chevron-left"></i> Prev</button>
+    <span class="mx-2 fw-semibold" id="weekLabel">
+      {{ week_dates[0].strftime('%d %b') }} – {{ week_dates[-1].strftime('%d %b %Y') }}
+    </span>
+    <button class="btn btn-sm btn-outline-secondary" id="nextWeek">Next <i class="bi bi-chevron-right"></i></button>
+  </div>
+  <a href="{{ url_for('dashboard.set_status') }}" class="btn btn-sm btn-dark"><i class="bi bi-pencil-square"></i> Set My Status</a>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-bordered mb-0" id="calTable">
+        <thead class="table-dark">
+          <tr>
+            <th style="min-width:150px">Employee</th>
+            {% for d in week_dates %}
+            <th class="text-center {% if d == today %}table-warning{% endif %}" style="min-width:100px">
+              {{ d.strftime('%a') }}<br/><small>{{ d.strftime('%d %b') }}</small>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody id="calBody">
+          {% for user in users %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ user.full_name }}</div>
+              {% if user.team %}<small class="text-muted">{{ user.team.name }}</small>{% endif %}
+            </td>
+            {% for d in week_dates %}
+            {% set st = status_map.get(user.id, {}).get(d) %}
+            <td class="text-center align-middle">
+              {% if st %}
+              <span class="status-{{ st }}">{{ st|upper }}</span>
+              {% else %}
+              <span class="status-empty">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mt-3 d-flex gap-2">
+  <span class="status-office">OFFICE</span>
+  <span class="status-remote">REMOTE</span>
+  <span class="status-pto">PTO</span>
+  <span class="status-empty">Not Set</span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let offset = 0;
+const fmt = d => new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+
+async function loadWeek(off) {
+  const res = await fetch(`/api/week-statuses?offset=${off}`);
+  const data = await res.json();
+  const thead = document.querySelector('#calTable thead tr');
+  // rebuild header (keep first th)
+  while(thead.children.length > 1) thead.removeChild(thead.lastChild);
+  const today = new Date().toISOString().slice(0,10);
+  data.week_dates.forEach(d => {
+    const th = document.createElement('th');
+    th.className = 'text-center' + (d===today?' table-warning':'');
+    th.style.minWidth='100px';
+    const dt = new Date(d+'T00:00:00');
+    th.innerHTML = dt.toLocaleDateString('en-GB',{weekday:'short'})+'<br/><small>'+dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+'</small>';
+    thead.appendChild(th);
+  });
+  document.getElementById('weekLabel').textContent =
+    fmt(data.week_dates[0]) + ' – ' + fmt(data.week_dates[6]) + ' ' + new Date(data.week_dates[6]+'T00:00:00').getFullYear();
+  const tbody = document.getElementById('calBody');
+  tbody.innerHTML = '';
+  data.users.forEach(u => {
+    const tr = document.createElement('tr');
+    let html = `<td><div class="fw-semibold">${u.name}</div>${u.team?`<small class="text-muted">${u.team}</small>`:''}</td>`;
+    data.week_dates.forEach(d => {
+      const st = (data.statuses[u.id]||{})[d];
+      html += `<td class="text-center align-middle">${st?`<span class="status-${st}">${st.toUpperCase()}</span>`:'<span class="status-empty">—</span>'}</td>`;
+    });
+    tr.innerHTML = html;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById('prevWeek').addEventListener('click',()=>{ offset--; loadWeek(offset); });
+document.getElementById('nextWeek').addEventListener('click',()=>{ offset++; loadWeek(offset); });
+</script>
+{% endblock %}
