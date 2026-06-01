@@ -59,8 +59,9 @@ workplace_mgmt/
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-username/workplace-management-system.git
-cd workplace-management-system
+git clone https://github.com/KaranMotwani22/WMS--Workplace-Management-System.git
+cd WMS--Workplace-Management-System
+cd "Workplace Management System"
 ```
 
 ### 2. Create and activate a virtual environment
