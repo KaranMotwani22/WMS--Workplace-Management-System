@@ -12,7 +12,7 @@
         {{ form.hidden_tag() }}
         <div class="mb-2">
           {{ form.date.label(class="form-label") }}
-          {{ form.date(class="form-control", min=today.isoformat()) }}
+          {{ form.date(class="form-control", min=today.isoformat(), max=(today + timedelta(days=13 - today.weekday())).isoformat()) }}
           {% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
         </div>
         <div id="availMsg" class="small text-muted mb-2"></div>

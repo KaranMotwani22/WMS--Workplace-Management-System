@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from models import db, User, WorkStatus, ParkingBooking, ParkingClaim, Notification
 from forms import ParkingBookingForm
 from config import Config
+from datetime import date, timedelta
 
 parking_bp = Blueprint('parking', __name__, url_prefix='/parking')
 
@@ -330,5 +331,6 @@ def index():
         released=released,
         pending_claims=pending_claims,
         today=today,
+        timedelta=timedelta,
         total_spots=TOTAL_SPOTS
     )
