@@ -195,9 +195,26 @@ def review_claim(claim_id, action):
         return redirect(url_for('parking.index'))
 
     if action == 'approve':
+        booking = clm.booking
+        # Guard: claimant must not already have an active booking that day
+        existing = ParkingBooking.query.filter(
+            ParkingBooking.user_id == clm.user_id,
+            ParkingBooking.date == booking.date,
+            ParkingBooking.status == 'active',
+            ParkingBooking.id != booking.id
+        ).first()
+        if existing:
+            clm.status = 'rejected'
+            clm.reviewed_by_id = current_user.id
+            _notify(clm.user_id,
+                    f'Your claim for Spot {booking.spot_number} on {booking.date} could not be approved — you already have Spot {existing.spot_number} that day.',
+                    'claim_rejected')
+            db.session.commit()
+            flash('Cannot approve — claimant already has an active booking that day.', 'warning')
+            return redirect(url_for('parking.index'))
+
         clm.status = 'approved'
         clm.reviewed_by_id = current_user.id
-        booking = clm.booking
         booking.user_id = clm.user_id
         booking.status = 'active'
         booking.released_by_id = None
