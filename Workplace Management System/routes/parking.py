@@ -137,6 +137,16 @@ def claim(booking_id):
         flash('You must have Office status to claim a parking spot.', 'warning')
         return redirect(url_for('parking.index'))
 
+    # Block claim if user already has an active booking that day
+    has_booking = ParkingBooking.query.filter(
+        ParkingBooking.user_id == current_user.id,
+        ParkingBooking.date == booking.date,
+        ParkingBooking.status == 'active'
+    ).first()
+    if has_booking:
+        flash(f'You already have Spot {has_booking.spot_number} booked for that day.', 'warning')
+        return redirect(url_for('parking.index'))
+
     # No duplicate claim
     already = ParkingClaim.query.filter_by(
         booking_id=booking.id, user_id=current_user.id
@@ -215,6 +225,7 @@ def review_claim(claim_id, action):
 
         clm.status = 'approved'
         clm.reviewed_by_id = current_user.id
+        booking = clm.booking
         booking.user_id = clm.user_id
         booking.status = 'active'
         booking.released_by_id = None
