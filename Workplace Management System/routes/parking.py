@@ -9,6 +9,19 @@ parking_bp = Blueprint('parking', __name__, url_prefix='/parking')
 
 TOTAL_SPOTS = Config.PARKING_SPOTS_TOTAL
 
+def _can_manage_booking(booking):
+    """Return True if current_user is allowed to release/manage this booking."""
+    if booking.user_id == current_user.id:
+        return True
+    if current_user.is_executive:
+        return True
+    if (current_user.is_team_leader
+            and current_user.team_id is not None
+            and booking.user.team_id == current_user.team_id):
+        return True
+    return False
+
+
 @parking_bp.route('/book', methods=['POST'])
 @login_required
 def book():
@@ -63,14 +76,14 @@ def book():
     flash(f'Parking spot {free[0]} reserved for {chosen_date}.', 'success')
     return redirect(url_for('parking.index'))
 
+
 @parking_bp.route('/release/<int:booking_id>', methods=['POST'])
 @login_required
 def release(booking_id):
     booking = ParkingBooking.query.get_or_404(booking_id)
 
-    # Only owner or team leader can release
-    if booking.user_id != current_user.id and not current_user.is_team_leader and not current_user.is_executive:
-        flash('Not authorized.', 'danger')
+    if not _can_manage_booking(booking):
+        flash('Not authorized. You can only release spots for members of your own team.', 'danger')
         return redirect(url_for('parking.index'))
 
     if booking.status != 'active':
@@ -88,7 +101,6 @@ def release(booking_id):
     ).all()
 
     for (uid,) in office_users:
-        # Skip users who already have parking
         has_parking = ParkingBooking.query.filter_by(
             user_id=uid, date=booking.date, status='active'
         ).first()
@@ -125,6 +137,16 @@ def claim(booking_id):
         flash('You must have Office status to claim a parking spot.', 'warning')
         return redirect(url_for('parking.index'))
 
+    # Block claim if user already has an active booking that day
+    has_booking = ParkingBooking.query.filter(
+        ParkingBooking.user_id == current_user.id,
+        ParkingBooking.date == booking.date,
+        ParkingBooking.status == 'active'
+    ).first()
+    if has_booking:
+        flash(f'You already have Spot {has_booking.spot_number} booked for that day.', 'warning')
+        return redirect(url_for('parking.index'))
+
     # No duplicate claim
     already = ParkingClaim.query.filter_by(
         booking_id=booking.id, user_id=current_user.id
@@ -140,8 +162,14 @@ def claim(booking_id):
     )
     db.session.add(clm)
 
-    # Notify team leaders
-    leaders = User.query.filter_by(role='team_leader', is_active=True).all()
+    # Notify only the team leader of the claimant's team
+    if current_user.team_id:
+        leaders = User.query.filter_by(
+            role='team_leader', team_id=current_user.team_id, is_active=True
+        ).all()
+    else:
+        leaders = User.query.filter_by(role='team_leader', is_active=True).all()
+
     for leader in leaders:
         _notify(
             leader.id,
@@ -157,17 +185,44 @@ def claim(booking_id):
 @parking_bp.route('/claim/review/<int:claim_id>/<action>', methods=['POST'])
 @login_required
 def review_claim(claim_id, action):
-    if not current_user.is_team_leader and not current_user.is_executive:
+    clm = ParkingClaim.query.get_or_404(claim_id)
+
+    # Executive can review any claim
+    # Team leader can only review claims from their own team members
+    if current_user.is_executive:
+        pass
+    elif current_user.is_team_leader and current_user.team_id:
+        claimant = User.query.get(clm.user_id)
+        if claimant.team_id != current_user.team_id:
+            flash('Not authorized. You can only review claims from your own team.', 'danger')
+            return redirect(url_for('parking.index'))
+    else:
         flash('Not authorized.', 'danger')
         return redirect(url_for('parking.index'))
-
-    clm = ParkingClaim.query.get_or_404(claim_id)
 
     if clm.status != 'pending':
         flash('Claim already reviewed.', 'info')
         return redirect(url_for('parking.index'))
 
     if action == 'approve':
+        booking = clm.booking
+        # Guard: claimant must not already have an active booking that day
+        existing = ParkingBooking.query.filter(
+            ParkingBooking.user_id == clm.user_id,
+            ParkingBooking.date == booking.date,
+            ParkingBooking.status == 'active',
+            ParkingBooking.id != booking.id
+        ).first()
+        if existing:
+            clm.status = 'rejected'
+            clm.reviewed_by_id = current_user.id
+            _notify(clm.user_id,
+                    f'Your claim for Spot {booking.spot_number} on {booking.date} could not be approved — you already have Spot {existing.spot_number} that day.',
+                    'claim_rejected')
+            db.session.commit()
+            flash('Cannot approve — claimant already has an active booking that day.', 'warning')
+            return redirect(url_for('parking.index'))
+
         clm.status = 'approved'
         clm.reviewed_by_id = current_user.id
         booking = clm.booking
@@ -229,9 +284,39 @@ def index():
         ParkingBooking.status == 'released'
     ).order_by(ParkingBooking.date).all()
 
-    # Pending claims (team leader sees their team's; operator sees own)
-    if current_user.is_team_leader or current_user.is_executive:
+    # Team bookings: team leader sees active bookings of their own team
+    # so they can release on behalf of a member
+    team_bookings = []
+    if current_user.is_team_leader and current_user.team_id:
+        team_member_ids = [
+            u.id for u in User.query.filter_by(
+                team_id=current_user.team_id, is_active=True
+            ).all()
+            if u.id != current_user.id
+        ]
+        if team_member_ids:
+            team_bookings = ParkingBooking.query.filter(
+                ParkingBooking.user_id.in_(team_member_ids),
+                ParkingBooking.date >= today,
+                ParkingBooking.status == 'active'
+            ).order_by(ParkingBooking.date).all()
+
+    # Pending claims:
+    # - Executive sees all
+    # - Team leader sees only claims by their own team members
+    # - Operator sees only their own
+    if current_user.is_executive:
         pending_claims = ParkingClaim.query.filter_by(status='pending').all()
+    elif current_user.is_team_leader and current_user.team_id:
+        team_member_ids = [
+            u.id for u in User.query.filter_by(
+                team_id=current_user.team_id, is_active=True
+            ).all()
+        ]
+        pending_claims = ParkingClaim.query.filter(
+            ParkingClaim.status == 'pending',
+            ParkingClaim.user_id.in_(team_member_ids)
+        ).all()
     else:
         pending_claims = ParkingClaim.query.filter_by(
             user_id=current_user.id, status='pending'
@@ -241,6 +326,7 @@ def index():
         'parking/index.html',
         form=form,
         my_bookings=my_bookings,
+        team_bookings=team_bookings,
         released=released,
         pending_claims=pending_claims,
         today=today,

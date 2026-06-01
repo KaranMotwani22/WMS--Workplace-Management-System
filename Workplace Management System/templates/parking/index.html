@@ -49,7 +49,35 @@
     </div>
   </div>
 
-  <!-- Released spots -->
+  <!-- Team bookings (team leader only) -->
+  {% if current_user.is_team_leader and team_bookings %}
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="fw-bold mb-3"><i class="bi bi-people text-primary"></i> My Team's Bookings</h6>
+      <p class="text-muted small">As team leader you can release spots on behalf of your team members.</p>
+      <table class="table table-sm table-hover mb-0">
+        <thead><tr><th>Employee</th><th>Date</th><th>Spot</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for b in team_bookings %}
+          <tr>
+            <td>{{ b.user.full_name }}</td>
+            <td>{{ b.date.strftime('%a %d %b %Y') }}</td>
+            <td><span class="badge bg-secondary">Spot {{ b.spot_number }}</span></td>
+            <td>
+              <form method="POST" action="{{ url_for('parking.release', booking_id=b.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button class="btn btn-outline-warning btn-sm" onclick="return confirm('Release {{ b.user.first_name }}\'s spot?')">Release</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Released spots available to claim -->
   {% if released %}
   <div class="col-12">
     <div class="card p-3">
@@ -76,17 +104,22 @@
   </div>
   {% endif %}
 
-  <!-- Pending claims (leaders/exec) -->
+  <!-- Pending claims -->
   {% if pending_claims and (current_user.is_team_leader or current_user.is_executive) %}
   <div class="col-12">
     <div class="card p-3">
-      <h6 class="fw-bold mb-3"><i class="bi bi-hourglass-split text-primary"></i> Pending Claims</h6>
+      <h6 class="fw-bold mb-3"><i class="bi bi-hourglass-split text-primary"></i> Pending Claims
+        {% if current_user.is_team_leader and not current_user.is_executive %}
+        <small class="text-muted fw-normal">(your team only)</small>
+        {% endif %}
+      </h6>
       <table class="table table-sm mb-0">
-        <thead><tr><th>Employee</th><th>Date</th><th>Spot</th><th>Submitted</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Employee</th><th>Team</th><th>Date</th><th>Spot</th><th>Submitted</th><th>Actions</th></tr></thead>
         <tbody>
           {% for c in pending_claims %}
           <tr>
             <td>{{ c.user.full_name }}</td>
+            <td>{{ c.user.team.name if c.user.team else '—' }}</td>
             <td>{{ c.booking.date.strftime('%a %d %b %Y') }}</td>
             <td>Spot {{ c.booking.spot_number }}</td>
             <td>{{ c.created_at.strftime('%d %b %H:%M') }}</td>
