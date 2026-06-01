@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from models import db, User, WorkStatus, ParkingBooking, ParkingClaim, Notification
 from forms import ParkingBookingForm
 from config import Config
+from datetime import date, timedelta
 
 parking_bp = Blueprint('parking', __name__, url_prefix='/parking')
 
@@ -149,7 +150,7 @@ def claim(booking_id):
 
     # No duplicate claim
     already = ParkingClaim.query.filter_by(
-        booking_id=booking.id, user_id=current_user.id
+        booking_id=booking.id, user_id=current_user.id, status='pending'
     ).first()
     if already:
         flash('You already submitted a claim for this spot.', 'info')
@@ -330,5 +331,6 @@ def index():
         released=released,
         pending_claims=pending_claims,
         today=today,
+        timedelta=timedelta,
         total_spots=TOTAL_SPOTS
     )
